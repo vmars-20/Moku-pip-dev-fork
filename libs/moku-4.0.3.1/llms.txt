@@ -1,0 +1,185 @@
+# moku (Liquid Instruments Python API)
+
+> Official Python library for controlling Moku hardware devices
+
+## What is this?
+
+First-party Python library for Moku device control via HTTP API. Handles session management, bitstream deployment, and instrument configuration.
+
+**Key distinction**: This is the HTTP API wrapper (not platform models). For type-safe platform abstractions, see `moku-models`.
+
+## Core Exports
+
+### Key Classes
+
+- `Moku` - Base connection and session management class
+- `MultiInstrument` - Multi-slot instrument mode (primary entry point)
+- `Oscilloscope`, `WaveformGenerator`, `CloudCompile`, etc. - Individual instruments
+- `RequestSession` - HTTP API wrapper with session key management
+
+### Session Management
+
+```python
+from moku.instruments import MultiInstrument
+
+# Connect with ownership claim
+moku = MultiInstrument(ip='192.168.1.100', platform_id=2)
+
+# Graceful handoff (preserve previous state)
+moku = MultiInstrument(ip='192.168.1.100', platform_id=2, persist_state=True)
+
+# Context manager support
+with MultiInstrument(ip='192.168.1.100', platform_id=2) as moku:
+    # Auto-relinquish on exit
+    pass
+```
+
+**Session lifecycle**:
+- `claim_ownership()` - Acquire exclusive device access, receive session key
+- `persist_state=True` - Attempt to retain previous instrument state during handoff
+- `relinquish_ownership()` - Clean session termination
+- Session keys carried in `Moku-Client-Key` header for all requests
+
+## Basic Usage
+
+```python
+from moku.instruments import MultiInstrument, Oscilloscope
+
+# Connect to Moku:Lab (2-slot platform)
+moku = MultiInstrument(ip='192.168.1.100', platform_id=2)
+
+# Deploy Oscilloscope to slot 1
+osc = moku.set_instrument(1, Oscilloscope)
+
+# Configure MCC routing
+moku.set_connections([
+    {'source': 'Input1', 'destination': 'Slot1InA'},
+    {'source': 'Slot1OutA', 'destination': 'Output1'}
+])
+
+# Relinquish when done
+moku.relinquish_ownership()
+```
+
+## Common Tasks
+
+### Query running device state
+
+```python
+# Get instruments in each slot
+instruments = moku.get_instruments()
+# → ['CloudCompile', 'Oscilloscope', '', '']
+
+# Get MCC routing configuration
+connections = moku.get_connections()
+# → [{'source': 'Input1', 'destination': 'Slot1InA'}, ...]
+
+# Get frontend settings (per channel)
+frontend = moku.get_frontend(channel=1)
+# → {'impedance': '1MOhm', 'coupling': 'DC', 'attenuation': '0dB'}
+
+# Get output gain settings
+output = moku.get_output(channel=1)
+# → {'output_gain': '0dB'}
+
+# Get DIO configuration (Moku:Go and Moku:Delta only)
+dio = moku.get_dio(port=None)
+# → {'direction': [0, 0, 1, 1, ...]}
+```
+
+### Save/load configurations
+
+```python
+# Save current configuration to .mokuconf file
+moku.save_configuration('my_setup.mokuconf')
+
+# Load configuration from file
+moku.load_configuration('my_setup.mokuconf')
+```
+
+### Integration with moku-models
+
+```python
+from moku_models import MokuConfig, SlotConfig, MokuConnection, MOKU_LAB_PLATFORM
+from moku.instruments import MultiInstrument
+
+# Extract MokuConfig from running device
+moku = MultiInstrument(ip='192.168.1.100', platform_id=2)
+instruments = moku.get_instruments()
+connections = moku.get_connections()
+
+config = MokuConfig(
+    platform=MOKU_LAB_PLATFORM,
+    slots={
+        i+1: SlotConfig(instrument=inst)
+        for i, inst in enumerate(instruments) if inst
+    },
+    routing=[
+        MokuConnection(source=c['source'], destination=c['destination'])
+        for c in connections
+    ]
+)
+
+# Save for later deployment
+config.to_dict()  # → YAML-serializable dict
+```
+
+## CloudCompile Register Control
+
+```python
+from moku.instruments import CloudCompile
+
+# Deploy CloudCompile with custom bitstream
+cc = moku.set_instrument(1, CloudCompile, bs_path='custom.tar')
+
+# Set control registers (CR0-CR31)
+cc.set_control(idx=0, value=0xE0000000)
+
+# Query current register value
+value = cc.get_control(idx=0)
+
+# Bulk set multiple registers
+cc.set_controls({0: 0xE0000000, 1: 0x12345678})
+
+# Query all registers
+registers = cc.get_controls()
+```
+
+## Documentation
+
+- **README.md** - Installation and getting started
+- **CLAUDE.md** (Tier 2) - Complete API navigation, session handoff patterns, integration guide
+- **Official docs**: https://apis.liquidinstruments.com/
+
+## Key Design Notes
+
+- **Session-based ownership model** - Exclusive device access via session keys
+- **Bitstream management** - Automatic upload/versioning of instrument bitstreams
+- **Platform IDs**: 2=Moku:Lab, 4=Moku:Pro (use with `platform_id` parameter)
+- **This is HTTP wrapper, not models** - For type-safe abstractions, see `libs/moku-models/`
+
+## Common Instruments
+
+- **CloudCompile** - Custom FPGA bitstreams with control registers (CR0-CR31)
+- **Oscilloscope** - Waveform capture and visualization
+- **WaveformGenerator** - Signal generation
+- **SpectrumAnalyzer** - Frequency domain analysis
+- **PIDController** - Control loop implementation
+- **DataLogger** - Long-term data acquisition
+- **LogicAnalyzer** - Digital signal analysis (Moku:Go only)
+
+## Integration Notes
+
+**Works with**:
+- `moku-models` (sibling library) - Type-safe platform specs and deployment configs
+- Moku Desktop app - Share `.mokuconf` files
+- mokucli - Command-line device management
+
+**Use together**: First-party library (this) for device control + moku-models for config validation
+
+---
+
+**Version:** 4.0.3.1 (inlined)
+**Last Updated:** 2025-11-07
+**Part of:** Moku-pip-dev-fork development workspace
+**Complements:** libs/moku-models/ (type-safe platform models)
