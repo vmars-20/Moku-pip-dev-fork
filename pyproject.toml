@@ -1,0 +1,44 @@
+# Root workspace configuration for Moku development fork
+# This workspace manages the inlined moku-4.0.3.1 module
+
+[project]
+name = "moku-dev-workspace"
+version = "4.0.3.1"
+description = "Development workspace for Moku Python module"
+requires-python = ">=3.10"
+readme = "README.md"
+license = { text = "MIT" }
+
+# Include moku package as an editable dependency
+dependencies = [
+    "moku",
+]
+
+# Optional dependencies for neural network features
+[project.optional-dependencies]
+neuralnetwork = [
+    "tensorflow>=2.17",
+    "numpy>=1.19.3",
+]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov",
+    "ruff",
+]
+
+[tool.uv.workspace]
+members = [
+    "libs/moku-4.0.3.1",
+]
+
+# Point moku package to the local workspace member
+[tool.uv.sources]
+moku = { workspace = true }
+
+[tool.uv]
+# Development dependencies
+dev-dependencies = [
+    "pytest>=7.0",
+    "pytest-cov",
+    "ruff",
+]

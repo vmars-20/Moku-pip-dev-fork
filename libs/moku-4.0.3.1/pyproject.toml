@@ -1,0 +1,53 @@
+[project]
+name = "moku"
+version = "4.0.3.1"
+description = "Python scripting interface to the Liquid Instruments Moku hardware"
+authors = [
+    { name = "Liquid Instruments", email = "info@liquidinstruments.com" }
+]
+license = { text = "MIT" }
+readme = "README.md"
+requires-python = ">=3.10"
+keywords = [
+    "moku",
+    "mokugo",
+    "mokupro",
+    "liquid instruments",
+    "test",
+    "measurement",
+    "lab",
+    "equipment",
+]
+
+dependencies = [
+    "requests~=2.0",
+    "zeroconf",
+    "packaging",
+]
+
+[project.optional-dependencies]
+neuralnetwork = ["tensorflow>=2.17", "numpy>=1.19.3"]
+
+[project.scripts]
+moku = "moku.cli:main"
+
+[project.urls]
+Homepage = "https://liquidinstruments.com"
+Documentation = "https://apis.liquidinstruments.com"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["moku"]
+
+[tool.hatch.build.targets.sdist]
+exclude = [
+    "tests/",
+    "moku/examples/",
+    "__pycache__/",
+    "*.pyc",
+    "*.pyo",
+    "*.pyd",
+]
